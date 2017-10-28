@@ -67,9 +67,8 @@ static unsigned long n_allocb  = 0;
 static unsigned long n_alloc   = 0;
 static unsigned long n_freeb   = 0;
 static unsigned long n_free    = 0;
+//static unsigned long
 static item *list = NULL;
-
-
 
 //
 // init - this function is called once when the shared library is loaded
@@ -81,7 +80,7 @@ void init(void)
 
   LOG_START();
 
-  // initialize a new static itemlist to keep track of all memory (de-)allocations
+  // initialize a new list to keep track of all memory (de-)allocations
   // (not needed for part 1)
   list = new_list();
   freep = dlsym(RTLD_NEXT, "free");
@@ -125,10 +124,6 @@ void *realloc(void *ptr, size_t size)
   assert(ptr!=NULL);
   void* ret_ptr = reallocp(ptr, size);
   LOG_REALLOC(ptr, size, ret_ptr);
-
-  dealloc(list, ptr);
-  item *new_malloc_item = alloc(list, ret_ptr, size);
-
   n_allocb += size;
   n_alloc++;
   return ret_ptr;
@@ -142,9 +137,6 @@ void *calloc(size_t nmenb, size_t s)
   size_t size = nmenb * s;
   void * ret_ptr = callocp(nmenb, s);
   LOG_CALLOC(nmenb, s, ret_ptr);
-
-  item *new_malloc_item = alloc(list, ret_ptr, size);
-
   n_alloc++;
   n_allocb += size;
   return ret_ptr;
@@ -156,17 +148,9 @@ void *calloc(size_t nmenb, size_t s)
 void free(void *ptr)
 {
   assert(ptr!=NULL);
-  // first check if it's valid
-  if(find(list, ptr) == NULL)
-  { 
-    LOG_ILL_FREE();
-    return ;
-  }
-  //
-  // then check if we got too many
   if(n_alloc <= n_free)
   {
-    LOG_DOUBLE_FREE();
+    LOG_FREE(ptr);
     n_free++;
     return ;
   }
@@ -179,16 +163,12 @@ void free(void *ptr)
 // malloc
 //
 void * malloc(size_t size)
-{ 
+{
   assert(size != 0);
   void* ret_ptr = mallocp(size);
   LOG_MALLOC(size, ret_ptr);
-
-  item *new_malloc_item = alloc(list, ret_ptr, size);
-
   n_alloc++;
   n_allocb += size;
-
   return ret_ptr;
 }
 
@@ -198,7 +178,6 @@ void * malloc(size_t size)
 __attribute__((destructor))
 void fini(void)
 {
-
   unsigned long alloc_total = n_allocb; 
   unsigned long allocated_avg = n_allocb / n_alloc;
   LOG_STATISTICS(alloc_total, allocated_avg, 0);
@@ -209,6 +188,5 @@ void fini(void)
   free_list(list);
 }
 
-// ...
 
 // vim: tabstop=2 expandtab shiftwidth=2 softtabstop=2

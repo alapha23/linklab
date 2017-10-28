@@ -67,6 +67,7 @@ static unsigned long n_allocb  = 0;
 static unsigned long n_alloc   = 0;
 static unsigned long n_freeb   = 0;
 static unsigned long n_free    = 0;
+static unsigned flag = 0;
 static item *list = NULL;
 
 
@@ -125,10 +126,6 @@ void *realloc(void *ptr, size_t size)
   assert(ptr!=NULL);
   void* ret_ptr = reallocp(ptr, size);
   LOG_REALLOC(ptr, size, ret_ptr);
-
-  dealloc(list, ptr);
-  item *new_malloc_item = alloc(list, ret_ptr, size);
-
   n_allocb += size;
   n_alloc++;
   return ret_ptr;
@@ -142,9 +139,6 @@ void *calloc(size_t nmenb, size_t s)
   size_t size = nmenb * s;
   void * ret_ptr = callocp(nmenb, s);
   LOG_CALLOC(nmenb, s, ret_ptr);
-
-  item *new_malloc_item = alloc(list, ret_ptr, size);
-
   n_alloc++;
   n_allocb += size;
   return ret_ptr;
@@ -157,11 +151,7 @@ void free(void *ptr)
 {
   assert(ptr!=NULL);
   // first check if it's valid
-  if(find(list, ptr) == NULL)
-  { 
-    LOG_ILL_FREE();
-    return ;
-  }
+  
   //
   // then check if we got too many
   if(n_alloc <= n_free)
@@ -184,11 +174,17 @@ void * malloc(size_t size)
   void* ret_ptr = mallocp(size);
   LOG_MALLOC(size, ret_ptr);
 
-  item *new_malloc_item = alloc(list, ret_ptr, size);
+flag = 1;
+//  item *new_malloc_list = new_list();
+//  new_malloc_list->size = size;
+//  new_malloc_list->cnt++;
+
+//  alloc(list, new_list,size);
 
   n_alloc++;
   n_allocb += size;
 
+flag = 0;
   return ret_ptr;
 }
 
@@ -198,6 +194,11 @@ void * malloc(size_t size)
 __attribute__((destructor))
 void fini(void)
 {
+// fprintf(stderr, "\n\n");
+
+ //  dump_list(list);
+//  fprintf(stderr, "\n\n");
+ 
 
   unsigned long alloc_total = n_allocb; 
   unsigned long allocated_avg = n_allocb / n_alloc;

@@ -72,7 +72,10 @@ item *new_list(void)
   }
 
   // create new list
-  return (item*)callocp(1, sizeof(item));
+//  item* new_init_item = (item*)callocp(1, sizeof(item));
+//  new_init_item->cnt = 0;
+//  return  new_init_item; 
+    return (item*) callocp(1, sizeof(item));
 }
 
 void free_list(item *list)
@@ -148,7 +151,11 @@ item *dealloc(item *list, void *ptr)
 
 item *find(item *list, void *ptr)
 {
-  if (list == NULL) return NULL;
+  if (list == NULL) 
+  {
+    fprintf(stderr, "NULL list\n");
+    return NULL;
+  }
 
   list = list->next;
   while ((list != NULL) && (ptr > list->ptr)) {
