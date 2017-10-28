@@ -47,23 +47,26 @@
 #include <memlog.h>
 #include <memlist.h>
 #include "callinfo.h"
+#include "memtrace.h"
 
 //
 // function pointers to stdlib's memory management functions
 //
-static void *(*mallocp)(size_t size) = NULL;
+/*static void *(*mallocp)(size_t size) = NULL;
 static void (*freep)(void *ptr) = NULL;
 static void *(*callocp)(size_t nmemb, size_t size);
 static void *(*reallocp)(void *ptr, size_t size);
-
+*/
 //
 // statistics & other global variables
 //
-static unsigned long n_malloc  = 0;
-static unsigned long n_calloc  = 0;
-static unsigned long n_realloc = 0;
+//static unsigned long n_malloc  = 0;
+//static unsigned long n_calloc  = 0;
+//static unsigned long n_realloc = 0;
 static unsigned long n_allocb  = 0;
+static unsigned long n_alloc   = 0;
 static unsigned long n_freeb   = 0;
+static unsigned long n_free    = 0;
 static item *list = NULL;
 
 //
@@ -79,8 +82,93 @@ void init(void)
   // initialize a new list to keep track of all memory (de-)allocations
   // (not needed for part 1)
   list = new_list();
+  freep = dlsym(RTLD_NEXT, "free");
+  if((error = dlerror())!= NULL)
+  {
+    fprintf(stderr, "dlsym error: %s \n", error);
+    exit(1);
+  }
 
-  // ...
+  mallocp = dlsym(RTLD_NEXT, "malloc");
+  if((error = dlerror())!= NULL)
+  {
+    fprintf(stderr, "dlsym error: %s \n", error);
+    exit(1);
+  }
+  callocp = dlsym(RTLD_NEXT, "calloc");
+ if((error = dlerror())!= NULL)
+  {
+    fprintf(stderr, "dlsym error: %s \n", error);
+    exit(1);
+  }
+  reallocp = dlsym(RTLD_NEXT, "realloc");
+  if((error = dlerror())!= NULL)
+  {
+    fprintf(stderr, "dlsym error: %s \n", error);
+    exit(1);
+  }
+  callocp = dlsym(RTLD_NEXT, "calloc");
+  if((error = dlerror())!= NULL)
+  {
+    fprintf(stderr, "dlsym error: %s \n", error);
+    exit(1);
+  }
+}
+
+//
+// realloc
+//
+void *realloc(void *ptr, size_t size)
+{
+  assert(ptr!=NULL);
+  void* ret_ptr = reallocp(ptr, size);
+  LOG_REALLOC(ptr, size, ret_ptr);
+  n_allocb += size;
+  n_alloc++;
+  return ret_ptr;
+}
+
+//
+// calloc
+//
+void *calloc(size_t nmenb, size_t s)
+{
+  size_t size = nmenb * s;
+  void * ret_ptr = callocp(nmenb, s);
+  LOG_CALLOC(nmenb, s, ret_ptr);
+  n_alloc++;
+  n_allocb += size;
+  return ret_ptr;
+}
+
+//
+// free
+//
+void free(void *ptr)
+{
+  assert(ptr!=NULL);
+  if(n_alloc <= n_free)
+  {
+    LOG_FREE(ptr);
+    n_free++;
+    return ;
+  }
+  freep(ptr);
+  n_free++;
+  LOG_FREE(ptr);
+}
+
+//
+// malloc
+//
+void * malloc(size_t size)
+{
+  assert(size != 0);
+  void* ret_ptr = mallocp(size);
+  LOG_MALLOC(size, ret_ptr);
+  n_alloc++;
+  n_allocb += size;
+  return ret_ptr;
 }
 
 //
@@ -89,9 +177,9 @@ void init(void)
 __attribute__((destructor))
 void fini(void)
 {
-  // ...
-
-  LOG_STATISTICS(0L, 0L, 0L);
+  unsigned long alloc_total = n_allocb; 
+  unsigned long allocated_avg = n_allocb / n_alloc;
+  LOG_STATISTICS(alloc_total, allocated_avg, 0);
 
   LOG_STOP();
 
