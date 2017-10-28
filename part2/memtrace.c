@@ -52,11 +52,6 @@
 //
 // function pointers to stdlib's memory management functions
 //
-/*static void *(*mallocp)(size_t size) = NULL;
-static void (*freep)(void *ptr) = NULL;
-static void *(*callocp)(size_t nmemb, size_t size);
-static void *(*reallocp)(void *ptr, size_t size);
-*/
 //
 // statistics & other global variables
 //
@@ -67,8 +62,9 @@ static unsigned long n_allocb  = 0;
 static unsigned long n_alloc   = 0;
 static unsigned long n_freeb   = 0;
 static unsigned long n_free    = 0;
-//static unsigned long
 static item *list = NULL;
+
+
 
 //
 // init - this function is called once when the shared library is loaded
@@ -80,7 +76,7 @@ void init(void)
 
   LOG_START();
 
-  // initialize a new list to keep track of all memory (de-)allocations
+  // initialize a new static itemlist to keep track of all memory (de-)allocations
   // (not needed for part 1)
   list = new_list();
   freep = dlsym(RTLD_NEXT, "free");
@@ -124,8 +120,19 @@ void *realloc(void *ptr, size_t size)
   assert(ptr!=NULL);
   void* ret_ptr = reallocp(ptr, size);
   LOG_REALLOC(ptr, size, ret_ptr);
+
+// add free size of previous size
+  item* handler = (item*)find(list, ptr);
+  n_free++;
+  n_freeb += handler->size;
+
+// update the block item with the new size
+  remove_from_list(list, ptr);
+  item *new_malloc_item = alloc(list, ret_ptr, size);
+
   n_allocb += size;
   n_alloc++;
+  freep(handler);
   return ret_ptr;
 }
 
@@ -137,6 +144,9 @@ void *calloc(size_t nmenb, size_t s)
   size_t size = nmenb * s;
   void * ret_ptr = callocp(nmenb, s);
   LOG_CALLOC(nmenb, s, ret_ptr);
+
+  item *new_malloc_item = alloc(list, ret_ptr, size);
+
   n_alloc++;
   n_allocb += size;
   return ret_ptr;
@@ -148,14 +158,27 @@ void *calloc(size_t nmenb, size_t s)
 void free(void *ptr)
 {
   assert(ptr!=NULL);
+  // first check if it's valid
+  if(find(list, ptr) == NULL)
+  { 
+    LOG_ILL_FREE();
+    return ;
+  }
+  //
+  // then check if we got too many
   if(n_alloc <= n_free)
   {
-    LOG_FREE(ptr);
+    LOG_DOUBLE_FREE();
     n_free++;
     return ;
   }
-  freep(ptr);
+  item* handler = (item*)find(list, ptr);
+  handler->flag = 0;
+  remove_from_list(list, ptr);
   n_free++;
+  n_freeb += handler->size;
+  freep(ptr);
+  freep(handler);
   LOG_FREE(ptr);
 }
 
@@ -163,39 +186,59 @@ void free(void *ptr)
 // malloc
 //
 void * malloc(size_t size)
-{
+{ 
   assert(size != 0);
   void* ret_ptr = mallocp(size);
   LOG_MALLOC(size, ret_ptr);
+
+  item *new_malloc_item = alloc(list, ret_ptr, size);
+
   n_alloc++;
   n_allocb += size;
+
   return ret_ptr;
 }
 
+void dump_nonfreed(item *list)
+{
+  item* temp = list;
+  if (list == NULL)
+  {
+    fprintf(stderr, "list is empty\n");
+    return ;
+  }
+
+  temp = temp->next;
+  while ((temp != NULL) ) {
+    
+  //  if (handler->flag == 1)
+       LOG_BLOCK(temp->ptr, temp->size, temp->cnt, temp->fname, temp->ofs);
+    temp = temp->next;
+//    fprintf(stderr, "in the dump loop, flag =%d\n", handler->flag);
+  }
+
+  return ;
+}
 //
 // fini - this function is called once when the shared library is unloaded
 //
 __attribute__((destructor))
 void fini(void)
 {
+
   unsigned long alloc_total = n_allocb; 
   unsigned long allocated_avg = n_allocb / n_alloc;
+  LOG_STATISTICS(alloc_total, allocated_avg, n_freeb);
 
-  void* block;
-  int block_size = 0;
-  int cnt = 0;
-  char* fn = "NO";
-  int ofs;
-
-  LOG_STATISTICS(alloc_total, allocated_avg, 0);
+// dump_list(list);
 
   LOG_NONFREED_START();
-  LOG_BLOCK(block, block_size, cnt, fn, ofs);
+  dump_nonfreed(list);
+
   LOG_STOP();
 
   // free list (not needed for part 1)
   free_list(list);
 }
-
 
 // vim: tabstop=2 expandtab shiftwidth=2 softtabstop=2

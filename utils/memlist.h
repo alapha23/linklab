@@ -49,6 +49,7 @@
 //   next       pointer to next item in linked list
 //
 typedef struct __item {
+  int flag;
   void *ptr;
   size_t size;
   int cnt;

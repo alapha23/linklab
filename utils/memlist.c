@@ -71,10 +71,6 @@ item *new_list(void)
     exit(EXIT_FAILURE);
   }
 
-  // create new list
-//  item* new_init_item = (item*)callocp(1, sizeof(item));
-//  new_init_item->cnt = 0;
-//  return  new_init_item; 
     return (item*) callocp(1, sizeof(item));
 }
 
@@ -100,6 +96,7 @@ item *alloc(item *list, void *ptr, size_t size)
   i->ptr = ptr;
   i->size = size;
   i->cnt = 1;
+  i->flag = 1;
   if (get_callinfo(&i->fname[0], sizeof(i->fname), &i->ofs) < 0) {
     strncpy(i->fname, "???", sizeof(i->fname));
     i->ofs = 0;
@@ -145,7 +142,6 @@ item *dealloc(item *list, void *ptr)
 
   // decrement reference count if found
   if (cur != NULL) cur->cnt--;
-
   return cur;
 }
 
@@ -158,12 +154,34 @@ item *find(item *list, void *ptr)
   }
 
   list = list->next;
-  while ((list != NULL) && (ptr > list->ptr)) {
+  while ((list != NULL) && (ptr != list->ptr)) {
     list = list->next;
   }
 
   if ((list != NULL) && (list->ptr == ptr)) return list;
   else return NULL;
+}
+
+
+void remove_from_list(item *list, void *ptr)
+{
+   item *prev, *cur, *i;
+
+  if (list == NULL) return ;
+
+  // find block
+  prev = list; cur = list->next;
+  while ((cur != NULL) && (cur->ptr != ptr)) {
+    prev = cur; cur = cur->next;
+  }
+
+  // remove object if found
+  if (cur != NULL) {
+    if(cur->next != NULL)
+      prev->next = cur->next;
+    else
+      prev->next = NULL;
+  }
 }
 
 void dump_list(item *list)
@@ -174,6 +192,12 @@ void dump_list(item *list)
   printf("  %-16s   %-8s   %-3s   %-16s\n",
       "block", "size", "cnt", "caller");
   while (i != NULL) {
+  fprintf(stderr, "flag = %d\n", i->flag);
+    if(i->flag == 0)
+    {
+      i = i->next;
+      continue;
+    }
     printf("  %-16p   %-8zd   %-3d   %s:%llx\n",
         i->ptr, i->size, i->cnt, i->fname, i->ofs);
     i = i->next;
