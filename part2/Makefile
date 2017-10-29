@@ -30,8 +30,7 @@ help:
 	@echo ""
 
 compile: memtrace.c $(DEPS)
-	$(CC) -I. -I $(UTIL_DIR) -o $(LIB) -shared -fPIC $< $(UTIL_SRC) -ldl -lunwind
-
+	$(CC) -I. -I $(UTIL_DIR) -o $(LIB) -shared -fPIC $< $(UTIL_SRC) -ldl
 .PHONY: run
 run: compile
 	@LD_PRELOAD=./$(LIB) $(TEST_DIR)/$(RUN_ARG)

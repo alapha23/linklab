@@ -34,8 +34,11 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-
+#include <stdint.h>
 #include "callinfo.h"
+
+#define VOIDP2INT(i) (int)(uintptr_t)(i)
+
 
 int mlog(int pc, const char *fmt, ...)
 {
@@ -46,12 +49,12 @@ int mlog(int pc, const char *fmt, ...)
   res = fprintf(stderr, "[%04u] ", id++);
 
   if (pc) {
-    char buf[16];
+    char buf[16] = "";
     unsigned long long ofs;
     if (get_callinfo(&buf[0], sizeof(buf), &ofs) != -1) {
       res += fprintf(stderr, "%12s:%-3llx: ", buf, ofs);
     } else {
-      res += fprintf(stderr, "%5c%10p : ", ' ', NULL);
+      res += fprintf(stderr, "        %5c%10p : ", VOIDP2INT(buf), (void *)ofs );
     }
   }
 

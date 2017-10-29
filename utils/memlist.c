@@ -76,6 +76,8 @@ item *new_list(void)
 
 void free_list(item *list)
 {
+  if(list == NULL)
+    return ;
   item *next;
 
   while (list) {

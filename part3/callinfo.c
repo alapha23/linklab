@@ -32,11 +32,57 @@
 // DAMAGE.
 //------------------------------------------------------------------------------
 
+#include <stdio.h>
 #include "callinfo.h"
 
 int get_callinfo(char *fname, size_t fnlen, unsigned long long *ofs)
 {
-  return -1;
+  char func_name[fnlen];
+  unw_cursor_t cur;
+  unw_context_t uc;
+  unw_word_t offp;
+
+ unw_getcontext(&uc);
+ unw_init_local(&cur, &uc);
+ // goto alloc
+ if (unw_step(&cur) < 0)
+   return -1;
+ // goto alloc in memlist.c
+ if (unw_step(&cur)<0)
+   return -1;
+//   fprintf(stderr, "interesting1\n");
+ if (unw_step(&cur)<0)
+   return -1;
+ if ( unw_step(&cur)<0)
+   return -1;
+
+  unw_get_proc_name(&cur, func_name, fnlen, &offp);
+  
+ char key[] = "__libc_start_main";
+ int i = 0;
+ while(i< fnlen){
+   if(func_name[i] != key[i])
+     break;
+   i++;
+ }
+ if(i == fnlen-1)
+  {
+  *fname++ = 'm';
+  *fname++ = 'a';
+  *fname++ = 'i';
+  *fname = 'n';
+  }
+  else
+  {
+    i = 0;
+    while(func_name != '\0' && i < fnlen)
+    {
+      *fname++ = *(func_name+i);
+      i++;
+    }
+  }
+  *ofs = (unsigned long long )offp;
+  return 1;
 }
 
 // vim: tabstop=2 expandtab shiftwidth=2 softtabstop=2
